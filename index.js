@@ -8,7 +8,20 @@ app.use(express.static("public"));
 
 const PORT = process.env.PORT || 3000;
 
-// Проксируем страницу отзывов Авито через сервер (чтобы не было блокировки по IP)
+// Проверочная главная страница
+app.get("/", (req, res) => {
+  res.send(`
+    <html>
+      <head><meta charset="UTF-8"><title>Avito Reviews Widget</title></head>
+      <body style="background:#000;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;">
+        <h2>✅ Сервер работает!</h2>
+        <p>Попробуй открыть <a href="/reviews" style="color:#4af;">/reviews</a></p>
+      </body>
+    </html>
+  `);
+});
+
+// Основной маршрут отзывов
 app.get("/reviews", async (req, res) => {
   try {
     const targetUrl =
@@ -19,14 +32,16 @@ app.get("/reviews", async (req, res) => {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
         "Accept-Language": "ru,en;q=0.9"
-      }
+      },
+      timeout: 10000
     });
 
-    // Упрощённый фильтр: вытаскиваем только блок отзывов
     const match = data.match(/<div[^>]+data-marker="reviews-list"[\s\S]+?<\/div><\/div>/);
-    const reviewsHtml = match ? match[0] : "<p>Отзывы временно недоступны.</p>";
+    const reviewsHtml = match
+      ? match[0]
+      : "<p>Отзывы не найдены — возможно, Авито временно ограничил доступ.</p>";
 
-    const html = `
+    res.send(`
       <html lang="ru">
         <head>
           <meta charset="UTF-8" />
@@ -38,12 +53,11 @@ app.get("/reviews", async (req, res) => {
               background: transparent;
               color: white;
               font-family: system-ui, sans-serif;
-              overflow-y: auto;
-              overflow-x: hidden;
               display: flex;
               justify-content: center;
               align-items: flex-start;
               min-height: 100vh;
+              overflow-x: hidden;
             }
             .reviews-wrapper {
               width: 100%;
@@ -65,12 +79,20 @@ app.get("/reviews", async (req, res) => {
           <div class="reviews-wrapper">${reviewsHtml}</div>
         </body>
       </html>
-    `;
-
-    res.send(html);
+    `);
   } catch (error) {
     console.error("Ошибка при получении отзывов:", error.message);
-    res.status(500).send("<p style='color:white'>Ошибка загрузки отзывов с Авито.</p>");
+    res.status(200).send(`
+      <html><body style="background:#000;color:#fff;font-family:sans-serif;padding:40px;">
+      <h3>⚠️ Ошибка загрузки отзывов с Авито</h3>
+      <p>Возможные причины:</p>
+      <ul>
+        <li>Авито временно ограничил доступ по IP Render</li>
+        <li>Страница продавца изменилась</li>
+      </ul>
+      <p>Сам сервер работает — проверь адрес /</p>
+      </body></html>
+    `);
   }
 });
 
