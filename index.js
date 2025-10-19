@@ -1,53 +1,77 @@
-const express = require('express');
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
+import express from "express";
+import axios from "axios";
+import cors from "cors";
 
 const app = express();
+app.use(cors());
+app.use(express.static("public"));
 
-app.get('/', async (req, res) => {
+const PORT = process.env.PORT || 3000;
+
+// Проксируем страницу отзывов Авито через сервер (чтобы не было блокировки по IP)
+app.get("/reviews", async (req, res) => {
   try {
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
+    const targetUrl =
+      "https://m.avito.ru/brands/i88501117/all?sellerId=f84f45596f4cf92e6a47d398d0bb22ee#open-reviews-list";
+
+    const { data } = await axios.get(targetUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "Accept-Language": "ru,en;q=0.9"
+      }
     });
 
-    const page = await browser.newPage();
+    // Упрощённый фильтр: вытаскиваем только блок отзывов
+    const match = data.match(/<div[^>]+data-marker="reviews-list"[\s\S]+?<\/div><\/div>/);
+    const reviewsHtml = match ? match[0] : "<p>Отзывы временно недоступны.</p>";
 
-    await page.goto('https://m.avito.ru/brands/i88501117/all?sellerId=f84f45596f4cf92e6a47d398d0bb22ee#open-reviews-list', {
-      waitUntil: 'networkidle2'
-    });
-
-    const reviewsHTML = await page.evaluate(() => {
-      const reviewsBlock = document.querySelector('[data-marker="user-reviews/list"]');
-      return reviewsBlock ? reviewsBlock.outerHTML : '<p>Отзывы не найдены</p>';
-    });
-
-    await browser.close();
-
-    res.send(`
-      <!DOCTYPE html>
+    const html = `
       <html lang="ru">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          body { margin:0; padding:0; background: transparent; color: white; font-family: Arial, sans-serif; }
-          a { color: white; }
-          * { background: transparent !important; }
-        </style>
-      </head>
-      <body>
-        ${reviewsHTML}
-      </body>
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Отзывы с Авито</title>
+          <style>
+            body {
+              margin: 0;
+              background: transparent;
+              color: white;
+              font-family: system-ui, sans-serif;
+              overflow-y: auto;
+              overflow-x: hidden;
+              display: flex;
+              justify-content: center;
+              align-items: flex-start;
+              min-height: 100vh;
+            }
+            .reviews-wrapper {
+              width: 100%;
+              max-width: 720px;
+              padding: 20px;
+              box-sizing: border-box;
+            }
+            a, span, div, p {
+              color: white !important;
+              background: transparent !important;
+            }
+            img {
+              max-width: 100%;
+              height: auto;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="reviews-wrapper">${reviewsHtml}</div>
+        </body>
       </html>
-    `);
-  } catch (err) {
-    console.error('Ошибка Puppeteer:', err);
-    res.status(500).send(`<p style="color:white;">Ошибка при загрузке отзывов: ${err.message}</p>`);
+    `;
+
+    res.send(html);
+  } catch (error) {
+    console.error("Ошибка при получении отзывов:", error.message);
+    res.status(500).send("<p style='color:white'>Ошибка загрузки отзывов с Авито.</p>");
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Сервер запущен на порту ${PORT}`));
