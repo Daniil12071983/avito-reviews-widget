@@ -7,7 +7,24 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-// Основной маршрут для JSON
+// ========================
+// Главная страница
+// ========================
+app.get("/", (req, res) => {
+  res.send(`
+    <html>
+      <head><meta charset="UTF-8"><title>Avito Reviews Widget</title></head>
+      <body style="background:#000;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;">
+        <h2>✅ Сервер работает!</h2>
+        <p>Попробуй открыть <a href="/reviews" style="color:#4af;">/reviews</a></p>
+      </body>
+    </html>
+  `);
+});
+
+// ========================
+// JSON с отзывами
+// ========================
 app.get("/reviews.json", async (req, res) => {
   try {
     const targetUrl = "https://m.avito.ru/brands/i88501117/all?sellerId=f84f45596f4cf92e6a47d398d0bb22ee";
@@ -20,7 +37,7 @@ app.get("/reviews.json", async (req, res) => {
       timeout: 10000
     });
 
-    // Выбираем только текстовые отзывы через регулярку
+    // Извлекаем текстовые отзывы
     const reviewMatches = [...data.matchAll(/<div[^>]+data-marker="review-item"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/g)];
     const reviews = reviewMatches.map(m => m[1].replace(/<[^>]+>/g, '').trim()).filter(r => r);
 
@@ -31,7 +48,9 @@ app.get("/reviews.json", async (req, res) => {
   }
 });
 
-// HTML для iframe
+// ========================
+// HTML для iframe на Тильде
+// ========================
 app.get("/reviews", (req, res) => {
   const html = `
     <!DOCTYPE html>
@@ -58,7 +77,7 @@ app.get("/reviews", (req, res) => {
                 div.textContent = r;
                 container.appendChild(div);
               });
-              // Авто-подгонка высоты iframe
+              // Авто-подгонка высоты iframe для Тильды
               if (window.parentIFrame) {
                 window.parentIFrame.sendHeight();
               }
