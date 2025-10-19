@@ -1,13 +1,16 @@
 import express from "express";
 import cors from "cors";
 import fs from "fs";
+import path from "path";
 
 const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
+// ========================
 // Главная страница
+// ========================
 app.get("/", (req, res) => {
   res.send(`
     <html>
@@ -20,10 +23,13 @@ app.get("/", (req, res) => {
   `);
 });
 
-// JSON с отзывами (берём из кэша)
+// ========================
+// JSON с отзывами из кэша
+// ========================
 app.get("/reviews.json", (req, res) => {
   try {
-    const raw = fs.readFileSync("cached-reviews.json", "utf-8");
+    const filePath = path.join(process.cwd(), "cached-reviews.json");
+    const raw = fs.readFileSync(filePath, "utf-8");
     const reviews = JSON.parse(raw).reviews || [];
     res.json({ reviews });
   } catch (err) {
@@ -32,7 +38,9 @@ app.get("/reviews.json", (req, res) => {
   }
 });
 
-// HTML для iframe
+// ========================
+// HTML для iframe на Тильде
+// ========================
 app.get("/reviews", (req, res) => {
   const html = `
     <!DOCTYPE html>
