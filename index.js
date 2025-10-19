@@ -8,9 +8,7 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-// ========================
 // Главная страница
-// ========================
 app.get("/", (req, res) => {
   res.send(`
     <html>
@@ -23,12 +21,11 @@ app.get("/", (req, res) => {
   `);
 });
 
-// ========================
-// JSON с отзывами из кэша
-// ========================
+// JSON с отзывами
 app.get("/reviews.json", (req, res) => {
   try {
     const filePath = path.join(process.cwd(), "cached-reviews.json");
+    console.log("Путь к кэшу:", filePath);
     const raw = fs.readFileSync(filePath, "utf-8");
     const reviews = JSON.parse(raw).reviews || [];
     res.json({ reviews });
@@ -38,9 +35,7 @@ app.get("/reviews.json", (req, res) => {
   }
 });
 
-// ========================
-// HTML для iframe на Тильде
-// ========================
+// HTML для iframe
 app.get("/reviews", (req, res) => {
   const html = `
     <!DOCTYPE html>
