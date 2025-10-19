@@ -1,15 +1,13 @@
 import express from "express";
-import axios from "axios";
 import cors from "cors";
+import fs from "fs";
 
 const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-// ========================
 // Главная страница
-// ========================
 app.get("/", (req, res) => {
   res.send(`
     <html>
@@ -22,35 +20,19 @@ app.get("/", (req, res) => {
   `);
 });
 
-// ========================
-// JSON с отзывами
-// ========================
-app.get("/reviews.json", async (req, res) => {
+// JSON с отзывами (берём из кэша)
+app.get("/reviews.json", (req, res) => {
   try {
-    const targetUrl = "https://m.avito.ru/brands/i88501117/all?sellerId=f84f45596f4cf92e6a47d398d0bb22ee";
-
-    const { data } = await axios.get(targetUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36",
-        "Accept-Language": "ru"
-      },
-      timeout: 10000
-    });
-
-    // Извлекаем текстовые отзывы
-    const reviewMatches = [...data.matchAll(/<div[^>]+data-marker="review-item"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/g)];
-    const reviews = reviewMatches.map(m => m[1].replace(/<[^>]+>/g, '').trim()).filter(r => r);
-
+    const raw = fs.readFileSync("cached-reviews.json", "utf-8");
+    const reviews = JSON.parse(raw).reviews || [];
     res.json({ reviews });
   } catch (err) {
-    console.error("Ошибка при получении отзывов:", err.message);
+    console.error("Ошибка при чтении кэша:", err.message);
     res.json({ reviews: ["Отзывы временно недоступны"] });
   }
 });
 
-// ========================
-// HTML для iframe на Тильде
-// ========================
+// HTML для iframe
 app.get("/reviews", (req, res) => {
   const html = `
     <!DOCTYPE html>
@@ -77,7 +59,7 @@ app.get("/reviews", (req, res) => {
                 div.textContent = r;
                 container.appendChild(div);
               });
-              // Авто-подгонка высоты iframe для Тильды
+              // Авто-подгонка высоты iframe
               if (window.parentIFrame) {
                 window.parentIFrame.sendHeight();
               }
